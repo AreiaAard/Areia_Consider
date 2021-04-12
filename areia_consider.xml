@@ -58,6 +58,212 @@ end
 
 
 --------------------------------------------------
+-- Settings
+--------------------------------------------------
+
+Settings = {}
+
+function Settings.initialize()
+    AddAlias("alias_main_auto_consider",
+        "^ac\\s+auto(?:\\s+(?<setting>\\w+))?$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.auto_consider"
+    )
+    
+    AddAlias("alias_main_ignore_flag_display",
+        "^ac\\s+ignore\\s+flags?$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.ignore_flag_display"
+    )
+    AddAlias("alias_main_ignore_flag_toggle",
+        "^ac\\s+ignore\\s+flag\\s+(?<flag>\\w+)(?:\\s+(?<setting>\\w+))?$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.ignore_flag_toggle"
+    )
+    
+    AddAlias("alias_main_ignore_level_display",
+        "^ac\\s+ignore\\s+levels?$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.ignore_level_display"
+    )
+    AddAlias("alias_main_ignore_level_toggle",
+        "^ac\\s+ignore\\s+level\\s+(?<level>\\d+)(?:\\s+(?<setting>\\w+))?$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.ignore_level_toggle"
+    )
+    
+    AddAlias("alias_main_kill_cmd",
+        "^ac\\s+killcmd(?:\\s+(?<setting>.+?))?$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.kill_cmd"
+    )
+    
+    AddAlias("alias_main_consider_output",
+        "^ac\\s+show(?:\\s+(?<setting>\\w+))?$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.consider_output"
+    )
+    
+    Settings.load()
+end
+
+function Settings.default()
+    local default = {
+        autoConsider = false,
+        ignore = {
+            flags = {
+                aimed = true, evil = false, good = false,
+                sanctuary = true, wounded = true,
+            },
+            level = {}
+        },
+        killCmds = {"backstab"},
+        showConsiderOutput = false,
+    }
+    for i = 1, 13 do
+        table.insert(default.ignore.level, false)
+    end
+    return serialize.save_simple(default)
+end
+
+function Settings.load()
+    Settings.config = loadstring(string.format("return %s", var.config or Settings.default()))()
+    Settings.save()
+end
+
+function Settings.save()
+    var.config = serialize.save_simple(Settings.config)
+end
+
+function Settings.auto_consider(alias, line, wc)
+    local setting = wc.setting:lower()
+    if (setting == "") then
+        Settings.config.autoConsider = not Settings.config.autoConsider
+    elseif (setting == "on") then
+        Settings.config.autoConsider = true
+    elseif (setting == "off") then
+        Settings.config.autoConsider = false
+    else
+        Utility.print("Syntax: @Yac auto [on|off]")
+        return
+    end
+    Settings.save()
+    Utility.plugin_msg(string.format("%sabled auto-consider.", Settings.config.autoConsider and "@GEn" or "@RDis"))
+end
+
+function Settings.ignore_flag_display()
+    Utility.plugin_msg("Ignored flags:")
+    for _, flag in ipairs{"aimed", "evil", "good", "sanctuary", "wounded"} do
+        Utility.print(string.format("                @Y%-11.11s (%-5.5s@w)",
+            Utility.capitalize(flag), Settings.config.ignore.flags[flag] and "@GYes" or "@RNo"
+        ))
+    end
+end
+
+function Settings.ignore_flag_toggle(alias, line, wc)
+    local flag = wc.flag:lower()
+    if not (flag == "aimed" or flag == "evil" or flag == "good"
+    or flag == "sanctuary" or flag == "wounded") then
+        Utility.print("Valid flags: @Yaimed@w, @Yevil@w, @Ygood@w, @Ysanctuary@w, @Ywounded")
+        return
+    end
+    local setting = wc.setting:lower()
+    if (setting == "") then
+        Settings.config.ignore.flags[flag] = not Settings.config.ignore.flags[flag]
+    elseif (setting == "on") then
+        Settings.config.ignore.flags[flag] = true
+    elseif (setting == "off") then
+        Settings.config.ignore.flags[flag] = false
+    else
+        Utility.print(string.format("Syntax: @Yac ignore flag %s [on|off]", flag))
+        return
+    end
+    Settings.save()
+    Utility.plugin_msg(string.format("%s @wignoring mobs with the @Y%s @wflag while killing all.",
+        Settings.config.ignore.flags[flag] and "@GNow" or "@RNo longer", flag
+    ))
+end
+
+function Settings.ignore_level_display()
+    Utility.plugin_msg("Ignored levels:")
+    for i = 1, 13 do
+        Utility.print(string.format("                @Y%2.d@w. %-11.11s (%-5.5s@w)",
+            i, Consider.OUTPUTS[i + 2].level, Settings.config.ignore.level[i] and "@GYes" or "@RNo"
+        ))
+    end
+end
+
+function Settings.ignore_level_toggle(alias, line, wc)
+    local level = tonumber(wc.level)
+    if not (level >= 1 and level <= 13) then
+        Utility.print("Valid level ranges: @Y1 @wto @Y13")
+        return
+    end
+    local setting = wc.setting:lower()
+    if (setting == "") then
+        Settings.config.ignore.level[level] = not Settings.config.ignore.level[level]
+    elseif (setting == "on") then
+        Settings.config.ignore.level[level] = true
+    elseif (setting == "off") then
+        Settings.config.ignore.level[level] = false
+    else
+        Utility.print(string.format("Syntax: @Yac ignore level %d [on|off]", level))
+        return
+    end
+    Settings.save()
+    Utility.plugin_msg(string.format("%s @wignoring mobs in level range @y%s @wwhile killing all.",
+        Settings.config.ignore.level[level] and "@GNow" or "@RNo longer",
+        Consider.OUTPUTS[level + 2].level
+    ))
+end
+
+function Settings.kill_cmd(alias, line, wc)
+    if (wc.setting ~= "") then
+        Settings.config.killCmds = utils.split(wc.setting, ";")
+        Settings.save()
+    end
+    Utility.plugin_msg("Kill command:",
+        string.format("@Y%s", Settings.get_kill_cmd_str())
+    )
+end
+
+function Settings.get_kill_cmd(mob)
+    local cmdList = {}
+    for _, cmd in ipairs(Settings.config.killCmds) do
+        local cmdStr = string.format("%s %d.%s", cmd, mob.index, mob.keywords)
+        table.insert(cmdList, cmdStr)
+    end
+    return table.concat(cmdList, ";")
+end
+
+function Settings.get_kill_cmd_str()
+    local cmdList = {}
+    for _, cmd in ipairs(Settings.config.killCmds) do
+        local cmdStr = string.format("%s <target>", cmd)
+        table.insert(cmdList, cmdStr)
+    end
+    return table.concat(cmdList, ";")
+end
+
+function Settings.consider_output(alias, line, wc)
+    local setting = wc.setting:lower()
+    if (setting == "") then
+        Settings.config.showConsiderOutput = not Settings.config.showConsiderOutput
+    elseif (setting == "on") then
+        Settings.config.showConsiderOutput = true
+    elseif (setting == "off") then
+        Settings.config.showConsiderOutput = false
+    else
+        Utility.print("Syntax: @Yac show [on|off]")
+        return
+    end
+    Settings.save()
+    Utility.plugin_msg(string.format("%sabled @wdisplay of consider output.", Settings.config.showConsiderOutput and "@GEn" or "@RDis"))
+end
+
+
+
+--------------------------------------------------
 -- Consider
 --------------------------------------------------
 
@@ -157,7 +363,7 @@ function Consider.mob(trigger, line, wc)
     end
     local mob = {flags=flags, name=name, keywords=keywords, protected=protected, index=index}
     table.insert(Consider.mobs, 1, mob)
-    if (Main.showConsiderOutput) then
+    if (Settings.config.showConsiderOutput) then
         local level = Consider.OUTPUTS[tonumber(trigger:match("%d+"))].level or "Unknown"
         Utility.print(string.format("%s, %s, %s", mob.name, flagsStr ~= "" and flagsStr or "None", level))
     end
@@ -215,6 +421,7 @@ function Utility.initialize()
     
     local initializers = {
         Main.initialize,
+        Settings.initialize,
         Consider.initialize,
     }
     for _, initializer in ipairs(initializers) do
@@ -241,7 +448,14 @@ end
 
 function Utility.print(str)
     -- Lets us use Aard color codes in our ColourNotes
-    AnsiNote(stylesToANSI(ColoursToStyles("@w" .. str .. "@w")))
+    AnsiNote(stylesToANSI(ColoursToStyles(string.format("@w%s@w", str))))
+end
+
+function Utility.plugin_msg(str, ...)
+    Utility.print(string.format("[@YAreiaConsider@w]: %s", str))
+    for _, arg in ipairs{...} do
+        Utility.print(string.format("                 %s", arg))
+    end
 end
 
 function Utility.display_greeting()
@@ -249,6 +463,10 @@ end
 
 function Utility.display_help()
     Utility.print("TODO")
+end
+
+function Utility.capitalize(str)
+    return string.format("%s%s", str:sub(1, 1):upper(), str:sub(2))
 end
 
 
