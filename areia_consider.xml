@@ -58,6 +58,148 @@ end
 
 
 --------------------------------------------------
+-- Consider
+--------------------------------------------------
+
+Consider = {}
+
+function Consider.initialize()
+    AddAlias("alias_consider_mobs",
+        "^ac$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Consider.start"
+    )
+    
+    Consider.OUTPUTS = {
+        {pattern="(?<name>Strange forces) (?<protected>prevent) violence here\\.", level="Protected"},
+        {pattern="(?<name>.+?) has divine (?<protected>protection)\\.", level="Protected"},
+        {pattern="You would stomp (?<name>.+?) into the ground\\.", level="-20 or less"},
+        {pattern="(?<name>.+?) would be easy, but is it even worth the work out\\?", level="-10 to -19"},
+        {pattern="No Problem! (?<name>.+?) is weak compared to you\\.", level="-5 to -9"},
+        {pattern="(?<name>.+?) looks a little worried about the idea\\.", level="-2 to -4"},
+        {pattern="(?<name>.+?) should be a fair fight!", level="-1 to +1"},
+        {pattern="(?<name>.+?) snickers nervously\\.", level="+2 to +4"},
+        {pattern="(?<name>.+?) chuckles at the thought of you fighting (?:him|her|it)\\.", level="+5 to +9"},
+        {pattern="Best run away from (?<name>.+?) while you can!", level="+10 to +15"},
+        {pattern="Challenging (?<name>.+?) would be either very brave or very stupid\\.", level="+16 to +20"},
+        {pattern="(?<name>.+?) would crush you like a bug!", level="+21 to +30"},
+        {pattern="(?<name>.+?) would dance on your grave!", level="+31 to +40"},
+        {pattern="(?<name>.+?) says 'BEGONE FROM MY SIGHT unworthy!'", level="+41 to +50"},
+        {pattern="You would be completely annihilated by (?<name>.+?)!", level="+51 or more"},
+    }
+    for i, output in ipairs(Consider.OUTPUTS) do
+        local triggerName = string.format("trigger_consider_mob%d", i)
+        AddTriggerEx(triggerName,
+            string.format("^(?<flags>(?:\\([\\w\\s]+\\)\\s*)+)?%s$", output.pattern), "",
+            trigger_flag.OmitFromOutput + trigger_flag.RegularExpression + trigger_flag.Temporary,
+            custom_colour.NoChange, 0, "",
+            "Consider.mob", sendto.script, 100
+        )
+        SetTriggerOption(triggerName, "group", "trigger_group_consider_mobs")
+    end
+    AddTriggerEx("trigger_consider_mob_end",
+        "^\\{/consider\\}$", "",
+        trigger_flag.OmitFromOutput + trigger_flag.RegularExpression + trigger_flag.Temporary,
+        custom_colour.NoChange, 0, "",
+        "Consider.finish", sendto.script, 100
+    )
+    SetTriggerOption("trigger_consider_mob_end", "group", "trigger_group_consider_mobs")
+    
+    Consider.KEYWORDS_TO_IGNORE  =  {["a"] = true, ["an"] = true, ["and"] = true,
+        ["but"] = true, ["for"] = true, ["in"] = true, ["nor"] = true,
+        ["of"] = true, ["on"] = true, ["or"] = true, ["so"] = true, ["some"] = true,
+        ["the"] = true, ["to"] = true, ["too"] = true, ["with"] = true, ["yet"] = true,
+    }
+    
+    Consider.mobs = {}
+    Consider.cache = {}
+end
+
+function Consider.start()
+    local state = tonumber(gmcp("char.status.state"))
+    if not (state == 3 or state == 8) then -- neither active nor in combat
+        Utility.print("Character state does not allow consider.")
+        return
+    end
+    SendNoEcho("echo {consider}")
+    SendNoEcho("consider all")
+    SendNoEcho("echo {/consider}")
+    wait.make(Consider.start_CR)
+end
+
+function Consider.start_CR()
+    local line = wait.regexp("^\\{consider\\}$", 4, trigger_flag.OmitFromOutput)
+    if (not line) then
+        Utility.print("@RTimeout@w. Failed to obtain consider output.")
+        return
+    end
+    Consider.mobs = {}
+    EnableTriggerGroup("trigger_group_consider_mobs", true)
+end
+
+function Consider.mob(trigger, line, wc)
+    local flagsStr = wc.flags:lower()
+    local flags = {
+        aimed = (flagsStr:match("%(a%)") or flagsStr:match("%(aimed%)")) and true or false,
+        evil = (flagsStr:match("%(r%)") or flagsStr:match("%(red aura%)")) and true or false,
+        good = (flagsStr:match("%(g%)") or flagsStr:match("%(golden aura%)")) and true or false,
+        sanctuary = (flagsStr:match("%(w%)") or flagsStr:match("%(white aura%)")) and true or false,
+        wounded = flagsStr:match("%(wounded%)") and true or false
+    }
+    local name = wc.name
+    local keywords = Consider.get_mob_keywords(name)
+    local protected = wc.protected and true or false
+    local index = 1
+    for _, mob in ipairs(Consider.mobs) do
+        if (mob.keywords == keywords) then
+            index = index + 1
+        end
+    end
+    local mob = {flags=flags, name=name, keywords=keywords, protected=protected, index=index}
+    table.insert(Consider.mobs, 1, mob)
+    if (Main.showConsiderOutput) then
+        local level = Consider.OUTPUTS[tonumber(trigger:match("%d+"))].level or "Unknown"
+        Utility.print(string.format("%s, %s, %s", mob.name, flagsStr ~= "" and flagsStr or "None", level))
+    end
+end
+
+function Consider.finish()
+    EnableTriggerGroup("trigger_group_consider_mobs", false)
+    local num = #Consider.mobs
+    if (num > 0) then
+        Utility.print(string.format("@Y%d @wmob%s found.", num, num == 1 and "" or "s"))
+    end
+end
+
+function Consider.get_mob_keywords(name)
+    if (Consider.cache[name]) then
+        return Consider.cache[name]
+    end
+    local keywords = {}
+    for word in name:lower():gmatch("[^%s]+") do -- iterate through each string of non-whitespace chars
+        if (not Consider.KEYWORDS_TO_IGNORE[word]) then -- if not in omit table, we want to use it
+            -- take only the first part of hyphenated (eg, long-haired) and weird
+            -- apostrophe'd (eg, N'Kari) words
+            word = word:gsub("(%a+)['-]%a+", "%1")
+            -- then strip away any other non-alphabetic characters
+            word = word:gsub("%A", "")
+            if (word ~= "") then
+                table.insert(keywords, word)
+            end
+        end
+    end
+    if (#keywords == 0) then
+        -- Must be quite an odd name... just return it and let the user deal with it
+        return name
+    end
+    local keywordsStr = table.concat(keywords, " ")
+    Consider.cache[name] = keywordsStr
+    return keywordsStr
+end
+
+
+
+--------------------------------------------------
 -- Utility
 --------------------------------------------------
 
@@ -73,6 +215,7 @@ function Utility.initialize()
     
     local initializers = {
         Main.initialize,
+        Consider.initialize,
     }
     for _, initializer in ipairs(initializers) do
         initializer()
