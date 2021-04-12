@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Areia_Consider"
+   author="Areia"
+   id="434bc4b92d5e6ddf77d8e20c"
+   language="Lua"
+   purpose="Quick kill with consider"
+   save_state="n"
+   date_written="2021-04-11 21:00:00"
+   requires="5.06"
+   version="1.0"
+   >
+<description trim="y">
+<![CDATA[
+]]>
+</description>
+
+</plugin>
+
+<include name="constants.lua"/>
+
+
+
+<aliases>
+</aliases>
+
+
+
+<triggers>
+</triggers>
+
+
+
+<script>
+<![CDATA[
+require "commas"
+require "copytable"
+require "gmcphelper"
+require "tprint"
+require "var"
+require "wait"
+dofile(GetInfo(60) .. "aardwolf_colors.lua")
+
+
+
+--------------------------------------------------
+-- Main
+--------------------------------------------------
+
+Main = {}
+
+function Main.initialize()
+end
+
+
+
+--------------------------------------------------
+-- Utility
+--------------------------------------------------
+
+Utility = {}
+
+function Utility.initialize()
+    -- General aliases
+    AddAlias("alias_utility_help",
+        "^ac\\s+help$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Utility.display_help"
+    )
+    
+    local initializers = {
+        Main.initialize,
+    }
+    for _, initializer in ipairs(initializers) do
+        initializer()
+    end
+end
+
+function Utility.deinitialize()
+    local aliases = GetAliasList()
+    if (aliases) then
+        for i = 1, #aliases do
+            EnableAlias(aliases[i], false)
+            DeleteAlias(aliases[i])
+        end
+    end
+    local triggers = GetTriggerList()
+    if (triggers) then
+        for i = 1, #triggers do
+            EnableTrigger(triggers[i], false)
+            DeleteTrigger(triggers[i])
+        end
+    end
+end
+
+function Utility.print(str)
+    -- Lets us use Aard color codes in our ColourNotes
+    AnsiNote(stylesToANSI(ColoursToStyles("@w" .. str .. "@w")))
+end
+
+function Utility.display_greeting()
+end
+
+function Utility.display_help()
+    Utility.print("TODO")
+end
+
+
+
+--------------------------------------------------
+-- Plugin Callbacks
+--------------------------------------------------
+
+function OnPluginInstall()
+    Utility.initialize()
+    Utility.display_greeting()
+end
+
+function OnPluginEnable()
+    OnPluginInstall()
+end
+
+function OnPluginClose()
+    Utility.deinitialize()
+end
+
+function OnPluginDisable()
+    OnPluginClose()
+end
+
+function OnPluginBroadcast(msg, id, name, text)
+    if (id == "3e7dedbe37e44942dd46d264") then
+    end
+end
+]]>
+</script>
+
+
+</muclient>
