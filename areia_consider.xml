@@ -53,6 +53,66 @@ dofile(GetInfo(60) .. "aardwolf_colors.lua")
 Main = {}
 
 function Main.initialize()
+    AddAlias("alias_main_kill",
+        "^ac(?:k|\\s+kill)(?:\\s+(?<index>\\d+))?$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Main.kill"
+    )
+    AddAlias("alias_main_kill_all",
+        "^ac(?:a|\\s+killall)$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Main.kill_all"
+    )
+end
+
+function Main.kill(alias, line, wc)
+    local state = tonumber(gmcp("char.status.state"))
+    if not (state == 3 or state == 8) then
+        Utility.print("Character's state does not allow kill.")
+        return
+    end
+    if (#Consider.mobs == 0) then
+        Utility.print("No mobs considered. Considering...")
+        Consider.start()
+        return
+    end
+    local index = tonumber(wc.index) or 1
+    -- mobs are stored in reverse order, so we need to do a little math to find
+    -- the right one
+    local mob = Consider.mobs[#Consider.mobs + 1 - index]
+    if (not mob) then
+        Utility.print("There are only %d mobs currently indexed. Enter @Yac @wto refresh.")
+        return
+    end
+    if (Settings.should_ignore(mob)) then
+        Utility.print("That mob is currently being ignored.")
+        return
+    end
+    Execute(Settings.get_kill_cmd(mob))
+end
+
+function Main.kill_all(alias, line, wc)
+    local state = tonumber(gmcp("char.status.state"))
+    if not (state == 3 or state == 8) then
+        Utility.print("Character's state does not allow kill.")
+        return
+    end
+    if (#Consider.mobs == 0) then
+        Utility.print("No mobs considered. Considering...")
+        Consider.start()
+        return
+    end
+    local cmds = {}
+    for _, mob in ipairs(Consider.mobs) do
+        if (not Settings.should_ignore(mob)) then
+            table.insert(cmds, Settings.get_kill_cmd(mob))
+        end
+    end
+    if (#cmds == 0) then
+        Utility.print("All mobs in room are ignored.")
+        return
+    end
+    Execute(table.concat(cmds, ";"))
 end
 
 
@@ -64,41 +124,41 @@ end
 Settings = {}
 
 function Settings.initialize()
-    AddAlias("alias_main_auto_consider",
+    AddAlias("alias_settings_auto_consider",
         "^ac\\s+auto(?:\\s+(?<setting>\\w+))?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.auto_consider"
     )
     
-    AddAlias("alias_main_ignore_flag_display",
+    AddAlias("alias_settings_ignore_flag_display",
         "^ac\\s+ignore\\s+flags?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.ignore_flag_display"
     )
-    AddAlias("alias_main_ignore_flag_toggle",
+    AddAlias("alias_settings_ignore_flag_toggle",
         "^ac\\s+ignore\\s+flag\\s+(?<flag>\\w+)(?:\\s+(?<setting>\\w+))?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.ignore_flag_toggle"
     )
     
-    AddAlias("alias_main_ignore_level_display",
+    AddAlias("alias_settings_ignore_level_display",
         "^ac\\s+ignore\\s+levels?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.ignore_level_display"
     )
-    AddAlias("alias_main_ignore_level_toggle",
+    AddAlias("alias_settings_ignore_level_toggle",
         "^ac\\s+ignore\\s+level\\s+(?<level>\\d+)(?:\\s+(?<setting>\\w+))?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.ignore_level_toggle"
     )
     
-    AddAlias("alias_main_kill_cmd",
+    AddAlias("alias_settings_kill_cmd",
         "^ac\\s+killcmd(?:\\s+(?<setting>.+?))?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.kill_cmd"
     )
     
-    AddAlias("alias_main_consider_output",
+    AddAlias("alias_settings_consider_output",
         "^ac\\s+show(?:\\s+(?<setting>\\w+))?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.consider_output"
@@ -217,6 +277,18 @@ function Settings.ignore_level_toggle(alias, line, wc)
     ))
 end
 
+function Settings.should_ignore(mob)
+    -- ignore mob if protected (divine protection, safe room)
+    local ignoreMob = mob.protected
+    -- ignore if already ignored or mob's level range is set to ignored
+    ignoreMob = ignoreMob or Settings.config.ignore.level[mob.levelRange]
+    for flag, ignoreFlaggedMob in pairs(Settings.config.ignore.flags) do
+        -- ignore if already ignored or mob has a flag that is set to be ignored
+        ignoreMob = ignoreMob or (ignoreFlaggedMob and mob.flags[flag])
+    end
+    return ignoreMob
+end
+
 function Settings.kill_cmd(alias, line, wc)
     if (wc.setting ~= "") then
         Settings.config.killCmds = utils.split(wc.setting, ";")
@@ -230,7 +302,7 @@ end
 function Settings.get_kill_cmd(mob)
     local cmdList = {}
     for _, cmd in ipairs(Settings.config.killCmds) do
-        local cmdStr = string.format("%s %d.%s", cmd, mob.index, mob.keywords)
+        local cmdStr = string.format("%s %d.'%s'", cmd, mob.index, mob.keywords)
         table.insert(cmdList, cmdStr)
     end
     return table.concat(cmdList, ";")
@@ -315,6 +387,7 @@ function Consider.initialize()
         ["but"] = true, ["for"] = true, ["in"] = true, ["nor"] = true,
         ["of"] = true, ["on"] = true, ["or"] = true, ["so"] = true, ["some"] = true,
         ["the"] = true, ["to"] = true, ["too"] = true, ["with"] = true, ["yet"] = true,
+        ["merdevil"] = true, ["onyx"] = true,
     }
     
     Consider.mobs = {}
@@ -361,7 +434,10 @@ function Consider.mob(trigger, line, wc)
             index = index + 1
         end
     end
-    local mob = {flags=flags, name=name, keywords=keywords, protected=protected, index=index}
+    local levelRange = tonumber(trigger:match("%d+")) - 2 -- -2 adjusts for divine/safe msgs
+    local mob = {flags=flags, name=name, keywords=keywords,
+        protected=protected, index=index, levelRange=levelRange
+    }
     table.insert(Consider.mobs, 1, mob)
     if (Settings.config.showConsiderOutput) then
         local level = Consider.OUTPUTS[tonumber(trigger:match("%d+"))].level or "Unknown"
