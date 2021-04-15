@@ -84,7 +84,7 @@ function Main.kill(alias, line, wc)
         Utility.print("There are only %d mobs currently indexed. Enter @Yac @wto refresh.")
         return
     end
-    if (Settings.should_ignore(mob)) then
+    if (mob.ignore) then
         Utility.print("That mob is currently being ignored.")
         return
     end
@@ -104,7 +104,7 @@ function Main.kill_all(alias, line, wc)
     end
     local cmds = {}
     for _, mob in ipairs(Consider.mobs) do
-        if (not Settings.should_ignore(mob)) then
+        if (not mob.ignore) then
             table.insert(cmds, Settings.get_kill_cmd(mob))
         end
     end
@@ -246,9 +246,9 @@ end
 
 function Settings.ignore_level_display()
     Utility.plugin_msg("Ignored levels:")
-    for i = 1, 13 do
+    for i, range in ipairs(Consider.LEVEL_RANGE) do
         Utility.print(string.format("                @Y%2.d@w. %-11.11s (%-5.5s@w)",
-            i, Consider.OUTPUTS[i + 2].level, Settings.config.ignore.level[i] and "@GYes" or "@RNo"
+            i, range, Settings.config.ignore.level[i] and "@GYes" or "@RNo"
         ))
     end
 end
@@ -273,18 +273,18 @@ function Settings.ignore_level_toggle(alias, line, wc)
     Settings.save()
     Utility.plugin_msg(string.format("%s @wignoring mobs in level range @y%s @wwhile killing all.",
         Settings.config.ignore.level[level] and "@GNow" or "@RNo longer",
-        Consider.OUTPUTS[level + 2].level
+        Consider.LEVEL_RANGE[level]
     ))
 end
 
 function Settings.should_ignore(mob)
-    -- ignore mob if protected (divine protection, safe room)
+    -- ignore mob if it has divine protection
     local ignoreMob = mob.protected
     -- ignore if already ignored or mob's level range is set to ignored
     ignoreMob = ignoreMob or Settings.config.ignore.level[mob.levelRange]
-    for flag, ignoreFlaggedMob in pairs(Settings.config.ignore.flags) do
+    for flag in pairs(mob.flags) do
         -- ignore if already ignored or mob has a flag that is set to be ignored
-        ignoreMob = ignoreMob or (ignoreFlaggedMob and mob.flags[flag])
+        ignoreMob = ignoreMob or Settings.config.ignore.flags[flag]
     end
     return ignoreMob
 end
@@ -348,27 +348,32 @@ function Consider.initialize()
         "Consider.start"
     )
     
-    Consider.OUTPUTS = {
-        {pattern="(?<name>Strange forces) (?<protected>prevent) violence here\\.", level="Protected"},
-        {pattern="(?<name>.+?) has divine (?<protected>protection)\\.", level="Protected"},
-        {pattern="You would stomp (?<name>.+?) into the ground\\.", level="-20 or less"},
-        {pattern="(?<name>.+?) would be easy, but is it even worth the work out\\?", level="-10 to -19"},
-        {pattern="No Problem! (?<name>.+?) is weak compared to you\\.", level="-5 to -9"},
-        {pattern="(?<name>.+?) looks a little worried about the idea\\.", level="-2 to -4"},
-        {pattern="(?<name>.+?) should be a fair fight!", level="-1 to +1"},
-        {pattern="(?<name>.+?) snickers nervously\\.", level="+2 to +4"},
-        {pattern="(?<name>.+?) chuckles at the thought of you fighting (?:him|her|it)\\.", level="+5 to +9"},
-        {pattern="Best run away from (?<name>.+?) while you can!", level="+10 to +15"},
-        {pattern="Challenging (?<name>.+?) would be either very brave or very stupid\\.", level="+16 to +20"},
-        {pattern="(?<name>.+?) would crush you like a bug!", level="+21 to +30"},
-        {pattern="(?<name>.+?) would dance on your grave!", level="+31 to +40"},
-        {pattern="(?<name>.+?) says 'BEGONE FROM MY SIGHT unworthy!'", level="+41 to +50"},
-        {pattern="You would be completely annihilated by (?<name>.+?)!", level="+51 or more"},
+    Consider.LEVEL_RANGE = {
+        "-20 or less", "-10 to -19", "-5 to -9", "-2 to -4",
+        "-1 to +1", "+2 to +4", "+5 to +9", "+10 to +15",
+        "+16 to +20", "+21 to +30", "+31 to +40", "+41 to +50",
+        "+51 or more"
     }
-    for i, output in ipairs(Consider.OUTPUTS) do
+    Consider.OUTPUTS = {
+        "You would stomp (?<name>.+?) into the ground\\.",
+        "(?<name>.+?) would be easy, but is it even worth the work out\\?",
+        "No Problem! (?<name>.+?) is weak compared to you\\.",
+        "(?<name>.+?) looks a little worried about the idea\\.",
+        "(?<name>.+?) should be a fair fight!",
+        "(?<name>.+?) snickers nervously\\.",
+        "(?<name>.+?) chuckles at the thought of you fighting (?:him|her|it)\\.",
+        "Best run away from (?<name>.+?) while you can!",
+        "Challenging (?<name>.+?) would be either very brave or very stupid\\.",
+        "(?<name>.+?) would crush you like a bug!",
+        "(?<name>.+?) would dance on your grave!",
+        "(?<name>.+?) says 'BEGONE FROM MY SIGHT unworthy!'",
+        "You would be completely annihilated by (?<name>.+?)!",
+        "(?<name>.+?) has divine protection\\.",
+    }
+    for i, subpattern in ipairs(Consider.OUTPUTS) do
         local triggerName = string.format("trigger_consider_mob%d", i)
         AddTriggerEx(triggerName,
-            string.format("^(?<flags>(?:\\([\\w\\s]+\\)\\s*)+)?%s$", output.pattern), "",
+            string.format("^(?<flags>(?:\\([\\w\\s]+\\)\\s*)+)?%s$", subpattern), "",
             trigger_flag.OmitFromOutput + trigger_flag.RegularExpression + trigger_flag.Temporary,
             custom_colour.NoChange, 0, "",
             "Consider.mob", sendto.script, 100
@@ -390,8 +395,9 @@ function Consider.initialize()
         ["merdevil"] = true, ["onyx"] = true,
     }
     
-    Consider.mobs = {}
-    Consider.cache = {}
+    Consider.mobs = {} -- main mob info obtained from consider
+    Consider.keywordCount = {} -- keywords-to-count record used to track proper indices (see Consider.mob)
+    Consider.keywordCache = {} -- session name-to-keywords record (see Consider.get_mob_keywords)
 end
 
 function Consider.start()
@@ -413,35 +419,40 @@ function Consider.start_CR()
         return
     end
     Consider.mobs = {}
+    Consider.keywordCount = {}
     EnableTriggerGroup("trigger_group_consider_mobs", true)
 end
 
 function Consider.mob(trigger, line, wc)
+    local mob = {}
+    mob.name = wc.name
+    mob.keywords = Consider.get_mob_keywords(mob.name)
+    
+    -- update count of mobs with these particular keywords. The count directly
+    -- determines the mob's proper index (i.e., is this 1.goblin, 2.goblin, etc.).
+    Consider.keywordCount[mob.keywords] = (Consider.keywordCount[mob.keywords] or 0) + 1
+    mob.index = Consider.keywordCount[mob.keywords]
+    
+    mob.levelRange = tonumber(trigger:match("%d+"))
+    mob.protected = mob.levelRange == 14 -- divine protection
+    
     local flagsStr = wc.flags:lower()
-    local flags = {
-        aimed = (flagsStr:match("%(a%)") or flagsStr:match("%(aimed%)")) and true or false,
-        evil = (flagsStr:match("%(r%)") or flagsStr:match("%(red aura%)")) and true or false,
-        good = (flagsStr:match("%(g%)") or flagsStr:match("%(golden aura%)")) and true or false,
-        sanctuary = (flagsStr:match("%(w%)") or flagsStr:match("%(white aura%)")) and true or false,
-        wounded = flagsStr:match("%(wounded%)") and true or false
+    mob.flags = {
+        aimed = flagsStr:match("%(a%)") or flagsStr:match("%(aimed%)"),
+        evil = flagsStr:match("%(r%)") or flagsStr:match("%(red aura%)"),
+        good = flagsStr:match("%(g%)") or flagsStr:match("%(golden aura%)"),
+        sanctuary = flagsStr:match("%(w%)") or flagsStr:match("%(white aura%)"),
+        wounded = flagsStr:match("%(wounded%)")
     }
-    local name = wc.name
-    local keywords = Consider.get_mob_keywords(name)
-    local protected = wc.protected and true or false
-    local index = 1
-    for _, mob in ipairs(Consider.mobs) do
-        if (mob.keywords == keywords) then
-            index = index + 1
-        end
-    end
-    local levelRange = tonumber(trigger:match("%d+")) - 2 -- -2 adjusts for divine/safe msgs
-    local mob = {flags=flags, name=name, keywords=keywords,
-        protected=protected, index=index, levelRange=levelRange
-    }
+    
+    mob.ignore = Settings.should_ignore(mob)
     table.insert(Consider.mobs, 1, mob)
     if (Settings.config.showConsiderOutput) then
-        local level = Consider.OUTPUTS[tonumber(trigger:match("%d+"))].level or "Unknown"
-        Utility.print(string.format("%s, %s, %s", mob.name, flagsStr ~= "" and flagsStr or "None", level))
+        Utility.print(string.format("%-10.10s %s, %s, %s",
+            mob.ignore and "(Ignored)" or "", mob.name,
+            flagsStr ~= "" and flagsStr or "None",
+            Consider.LEVEL_RANGE[mob.levelRange]
+        ))
     end
 end
 
@@ -454,8 +465,8 @@ function Consider.finish()
 end
 
 function Consider.get_mob_keywords(name)
-    if (Consider.cache[name]) then
-        return Consider.cache[name]
+    if (Consider.keywordCache[name]) then
+        return Consider.keywordCache[name]
     end
     local keywords = {}
     for word in name:lower():gmatch("[^%s]+") do -- iterate through each string of non-whitespace chars
@@ -475,7 +486,7 @@ function Consider.get_mob_keywords(name)
         return name
     end
     local keywordsStr = table.concat(keywords, " ")
-    Consider.cache[name] = keywordsStr
+    Consider.keywordCache[name] = keywordsStr
     return keywordsStr
 end
 
