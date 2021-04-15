@@ -458,9 +458,24 @@ end
 
 function Consider.finish()
     EnableTriggerGroup("trigger_group_consider_mobs", false)
-    local num = #Consider.mobs
-    if (num > 0) then
-        Utility.print(string.format("@Y%d @wmob%s found.", num, num == 1 and "" or "s"))
+    local total = #Consider.mobs
+    if (total == 0) then
+        -- Utility.print("No mobs found.")
+        -- No real need to print here, since game output can handle this case itself.
+        return
+    end
+    local validTargets = 0
+    for _, mob in ipairs(Consider.mobs) do
+        validTargets = not mob.ignore and validTargets + 1 or validTargets
+    end
+    if (validTargets ~= total) then
+        Utility.print(string.format("@Y%d@w/@Y%d @wmob%s found.",
+            validTargets, total, total == 1 and "" or "s"
+        ))
+    else
+        Utility.print(string.format("@Y%d @wmob%s found.",
+            total, total == 1 and "" or "s"
+        ))
     end
 end
 
