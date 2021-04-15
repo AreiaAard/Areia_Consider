@@ -448,10 +448,10 @@ function Consider.mob(trigger, line, wc)
     mob.ignore = Settings.should_ignore(mob)
     table.insert(Consider.mobs, 1, mob)
     if (Settings.config.showConsiderOutput) then
-        Utility.print(string.format("%-10.10s %s, %s, %s",
+        Utility.print(string.format("%-10.10s%-35.35s | %-11.11s | %s",
             mob.ignore and "(Ignored)" or "", mob.name,
-            flagsStr ~= "" and flagsStr or "None",
-            Consider.LEVEL_RANGE[mob.levelRange]
+            Consider.LEVEL_RANGE[mob.levelRange] or "Protected",
+            flagsStr ~= "" and wc.flags or "None"
         ))
     end
 end
