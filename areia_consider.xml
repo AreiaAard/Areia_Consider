@@ -512,6 +512,23 @@ end
 
 
 --------------------------------------------------
+-- GMCPHandler
+--------------------------------------------------
+
+GMCPHandler = {}
+
+function GMCPHandler.initialize()
+    GMCPHandler.gmcpInitialized = false
+    GMCPHandler.prevRoom = {}
+end
+
+function GMCPHandler.received_room(room)
+    GMCPHandler.prevRoom = room
+end
+
+
+
+--------------------------------------------------
 -- Utility
 --------------------------------------------------
 
@@ -529,6 +546,7 @@ function Utility.initialize()
         Main.initialize,
         Settings.initialize,
         Consider.initialize,
+        GMCPHandler.initialize,
     }
     for _, initializer in ipairs(initializers) do
         initializer()
@@ -600,6 +618,12 @@ end
 
 function OnPluginBroadcast(msg, id, name, text)
     if (id == "3e7dedbe37e44942dd46d264") then
+        if (not GMCPHandler.gmcpInitialized) then
+            GMCPHandler.gmcpInitialized = true
+        end
+        if (text == "room.info") then
+            GMCPHandler.received_room(gmcp("room.info"))
+        end
     end
 end
 ]]>
