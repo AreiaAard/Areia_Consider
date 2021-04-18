@@ -400,6 +400,11 @@ function Consider.initialize()
     Consider.keywordCache = {} -- session name-to-keywords record (see Consider.get_mob_keywords)
 end
 
+function Consider.clear()
+    Consider.mobs = {}
+    Consider.keywordCount = {}
+end
+
 function Consider.start()
     local state = tonumber(gmcp("char.status.state"))
     if not (state == 3 or state == 8) then -- neither active nor in combat
@@ -418,8 +423,7 @@ function Consider.start_CR()
         Utility.print("@RTimeout@w. Failed to obtain consider output.")
         return
     end
-    Consider.mobs = {}
-    Consider.keywordCount = {}
+    Consider.clear()
     EnableTriggerGroup("trigger_group_consider_mobs", true)
 end
 
