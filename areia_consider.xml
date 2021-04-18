@@ -66,8 +66,8 @@ function Main.initialize()
 end
 
 function Main.kill(alias, line, wc)
-    local state = tonumber(gmcp("char.status.state"))
-    if not (state == 3 or state == 8) then
+    local state = GMCPHandler.get_char_state()
+    if not (state == GMCPHandler.CHAR_STATE.ACTIVE or state == GMCPHandler.CHAR_STATE.FIGHTING) then
         Utility.print("Character's state does not allow kill.")
         return
     end
@@ -92,8 +92,8 @@ function Main.kill(alias, line, wc)
 end
 
 function Main.kill_all(alias, line, wc)
-    local state = tonumber(gmcp("char.status.state"))
-    if not (state == 3 or state == 8) then
+    local state = GMCPHandler.get_char_state()
+    if not (state == GMCPHandler.CHAR_STATE.ACTIVE or state == GMCPHandler.CHAR_STATE.FIGHTING) then
         Utility.print("Character's state does not allow kill.")
         return
     end
@@ -406,8 +406,8 @@ function Consider.clear()
 end
 
 function Consider.start()
-    local state = tonumber(gmcp("char.status.state"))
-    if not (state == 3 or state == 8) then -- neither active nor in combat
+    local state = GMCPHandler.get_char_state()
+    if not (state == GMCPHandler.CHAR_STATE.ACTIVE or state == GMCPHandler.CHAR_STATE.FIGHTING) then
         Utility.print("Character state does not allow consider.")
         return
     end
@@ -518,8 +518,18 @@ end
 GMCPHandler = {}
 
 function GMCPHandler.initialize()
+    GMCPHandler.CHAR_STATE = {
+        ["LOGIN"] = 1, ["MOTD"] = 2, ["ACTIVE"] = 3, ["AFK"] = 4, ["NOTE"] = 5,
+        ["BUILDING"] = 6, ["PAGER"] = 7, ["FIGHTING"] = 8, ["SLEEPING"] = 9,
+        ["SITTING"] = 11, ["RUNNING"] = 12,
+    }
+    
     GMCPHandler.gmcpInitialized = false
     GMCPHandler.prevRoom = {}
+end
+
+function GMCPHandler.get_char_state()
+    return tonumber(gmcp("char.status.state"))
 end
 
 function GMCPHandler.received_room(room)
