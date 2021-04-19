@@ -544,6 +544,14 @@ function GMCPHandler.get_char_state()
     return GMCPHandler.mapperRunning and GMCPHandler.CHAR_STATE.RUNNING or tonumber(gmcp("char.status.state"))
 end
 
+function GMCPHandler.received_repop()
+    local state = GMCPHandler.get_char_state()
+    if (Settings.config.autoConsider and (state == GMCPHandler.CHAR_STATE.ACTIVE
+    or state == GMCPHandler.CHAR_STATE.FIGHTING)) then
+        Consider.start()
+    end
+end
+
 function GMCPHandler.received_room(room)
     if (Settings.config.autoConsider and GMCPHandler.get_char_state() ~= GMCPHandler.CHAR_STATE.RUNNING) then
         Consider.start()
@@ -648,6 +656,8 @@ function OnPluginBroadcast(msg, id, name, text)
         end
         if (text == "room.info") then
             GMCPHandler.received_room(gmcp("room.info"))
+        elseif (text == "comm.repop") then
+            GMCPHandler.received_repop()
         end
     
     elseif (id == "b6eae87ccedd84f510b74714") then -- GMCP Mapper
