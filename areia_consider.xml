@@ -526,13 +526,28 @@ function GMCPHandler.initialize()
     
     GMCPHandler.gmcpInitialized = false
     GMCPHandler.prevRoom = {}
+    GMCPHandler.mapperRunning = false
 end
 
 function GMCPHandler.get_char_state()
-    return tonumber(gmcp("char.status.state"))
+    -- We fudge the values a bit here. Because there are things like recall,
+    -- portals, cexits, etc., it is possible that the GMCP data might show char
+    -- status 3 while we're in the middle of mapper running us somewhere (eg, we
+    -- have just entered a portal [which causes GMCP to send new room data] but
+    -- have not actually started running yet). Such cases would cause this script
+    -- to auto-consider multiple times during a single run and thus spam and fail.
+    -- Because this script is more concerned with whether we are in the process
+    -- of being moved, rather than with the actual value of char state, for purposes
+    -- of auto-consider, we track the mapper's state (see OnPluginBroadcastbelow)
+    -- and, when it is mid-run, return a 'fake' value of 12. Otherwise we fall
+    -- back on the 'real' GMCP data.
+    return GMCPHandler.mapperRunning and GMCPHandler.CHAR_STATE.RUNNING or tonumber(gmcp("char.status.state"))
 end
 
 function GMCPHandler.received_room(room)
+    if (Settings.config.autoConsider and GMCPHandler.get_char_state() ~= GMCPHandler.CHAR_STATE.RUNNING) then
+        Consider.start()
+    end
     GMCPHandler.prevRoom = room
 end
 
@@ -633,6 +648,13 @@ function OnPluginBroadcast(msg, id, name, text)
         end
         if (text == "room.info") then
             GMCPHandler.received_room(gmcp("room.info"))
+        end
+    
+    elseif (id == "b6eae87ccedd84f510b74714") then -- GMCP Mapper
+        if (text == "kinda_busy") then
+            GMCPHandler.mapperRunning = true
+        elseif (text == "ok_you_can_go_now") then
+            GMCPHandler.mapperRunning = false
         end
     end
 end
