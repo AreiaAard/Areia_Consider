@@ -237,13 +237,13 @@ function Settings.auto_consider(alias, line, wc)
         return
     end
     Settings.save()
-    Utility.plugin_msg(string.format("%sabled auto-consider.", Settings.config.autoConsider and "@GEn" or "@RDis"))
+    Utility.plugin_msg(string.format("Auto-consider %sabled@w.", Settings.config.autoConsider and "@Gen" or "@Rdis"))
 end
 
 function Settings.ignore_flag_display()
     Utility.plugin_msg("Ignored flags:")
     for _, flag in ipairs{"aimed", "evil", "good", "sanctuary", "wounded"} do
-        Utility.print(string.format("                @Y%-11.11s (%-5.5s@w)",
+        Utility.print(string.format("            @Y%-11.11s (%-5.5s@w)",
             Utility.pascalCase(flag), Settings.config.ignore.flags[flag] and "@GYes" or "@RNo"
         ))
     end
@@ -268,7 +268,7 @@ function Settings.ignore_flag_toggle(alias, line, wc)
         return
     end
     Settings.save()
-    Utility.plugin_msg(string.format("%s @wignoring mobs with the @Y%s @wflag while killing all.",
+    Utility.plugin_msg(string.format("%s @wignoring mobs with the @Y%s @wflag.",
         Settings.config.ignore.flags[flag] and "@GNow" or "@RNo longer", flag
     ))
 end
@@ -276,7 +276,7 @@ end
 function Settings.ignore_level_display()
     Utility.plugin_msg("Ignored levels:")
     for i, range in ipairs(Consider.LEVEL_RANGE) do
-        Utility.print(string.format("                @Y%2.d@w. %-11.11s (%-5.5s@w)",
+        Utility.print(string.format("           @Y%2.d@w. %-11.11s (%-5.5s@w)",
             i, range, Settings.config.ignore.level[i] and "@GYes" or "@RNo"
         ))
     end
@@ -300,7 +300,7 @@ function Settings.ignore_level_toggle(alias, line, wc)
         return
     end
     Settings.save()
-    Utility.plugin_msg(string.format("%s @wignoring mobs in level range @y%s @wwhile killing all.",
+    Utility.plugin_msg(string.format("%s @wignoring mobs in level range @Y%s@w.",
         Settings.config.ignore.level[level] and "@GNow" or "@RNo longer",
         Consider.LEVEL_RANGE[level]
     ))
@@ -314,11 +314,11 @@ function Settings.ignore_mob_display()
     table.sort(alphabetized)
     Utility.plugin_msg("Ignored mobs:")
     if (#alphabetized == 0) then
-        Utility.print("                 No mobs ignored")
+        Utility.print("            No mobs ignored")
         return
     end
     for _, name in ipairs(alphabetized) do
-        Utility.print(string.format("                 @Y%s", name))
+        Utility.print(string.format("            @Y%s", name))
     end
 end
 
@@ -328,7 +328,7 @@ function Settings.ignore_mob_toggle(alias, line, wc)
     Settings.save()
     Utility.plugin_msg(string.format("%s @wignoreing mob @Y%s@w.",
         Settings.config.ignore.mobs[mob] and "@GNow" or "@RNo longer",
-        mob
+        Utility.pascalCase(mob)
     ))
 end
 
@@ -382,11 +382,11 @@ function Settings.mob_keywords_display_all()
     table.sort(alphabetized, function(e1,e2) return e1.name < e2.name end)
     Utility.plugin_msg("Custom mob keywords:")
     if (#alphabetized == 0) then
-        Utility.print("                 No custom keywords set")
+        Utility.print("            No custom keywords set")
         return
     end
     for _, mob in ipairs(alphabetized) do
-        Utility.print(string.format("                 @Y%-40.40s@w: @Y%s",
+        Utility.print(string.format("            @Y%-40.40s@w: @Y%s",
             Utility.pascalCase(mob.name), mob.keywords
         ))
     end
@@ -398,14 +398,13 @@ function Settings.mob_keywords_display_single(alias, line, wc)
     if (keywords) then
         Utility.plugin_msg(
             string.format(
-                "Using the following keywords to refer to @Y%s@w:",
-                Utility.pascalCase(mob)
+                "Custom keywords for @Y%s@w:", Utility.pascalCase(mob)
             ),
             string.format("@Y%s", keywords)
         )
         return
     end
-    Utility.plugin_msg(string.format("Using default keywords to refer to @Y%s@w.",
+    Utility.plugin_msg(string.format("No custom keywords set for @Y%s@w.",
         Utility.pascalCase(mob)
     ))
 end
@@ -431,7 +430,7 @@ function Settings.consider_output(alias, line, wc)
         return
     end
     Settings.save()
-    Utility.plugin_msg(string.format("%sabled @wdisplay of consider output.", Settings.config.showConsiderOutput and "@GEn" or "@RDis"))
+    Utility.plugin_msg(string.format("Will %s @wdisplay mob info.", Settings.config.showConsiderOutput and "@Gnow" or "@Rno longer"))
 end
 
 
@@ -717,9 +716,9 @@ function Utility.print(str)
 end
 
 function Utility.plugin_msg(str, ...)
-    Utility.print(string.format("[@YAreiaConsider@w]: %s", str))
+    Utility.print(string.format("[@YConsider@w]: %s", str))
     for _, arg in ipairs{...} do
-        Utility.print(string.format("                 %s", arg))
+        Utility.print(string.format("            %s", arg))
     end
 end
 
