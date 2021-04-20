@@ -180,7 +180,7 @@ function Settings.initialize()
         "Settings.mob_keywords_display_single"
     )
     AddAlias("alias_settings_mob_keyword_set",
-        "^ac\\s+keywords?\\s+(?<mob>[^\"]+?)\\s+\"(?<keywords>[\\w\\s]+)\"$", "",
+        "^ac\\s+keywords?\\s+(?<mob>[^\"]+?)\\s+\"(?<keywords>[\\w\\s]*)\"$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.mob_keywords"
     )
