@@ -152,6 +152,17 @@ function Settings.initialize()
         "Settings.ignore_level_toggle"
     )
     
+    AddAlias("alias_settings_ignore_mob_display",
+        "^ac\\s+ignore\\s+mobs?$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.ignore_mob_display"
+    )
+    AddAlias("alias_settings_ignore_mob_toggle",
+        "^ac\\s+ignore\\s+mob\\s+(?<mob>.+?)$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.ignore_mob_toggle"
+    )
+    
     AddAlias("alias_settings_kill_cmd",
         "^ac\\s+killcmd(?:\\s+(?<setting>.+?))?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
@@ -175,7 +186,8 @@ function Settings.default()
                 aimed = true, evil = false, good = false,
                 sanctuary = true, wounded = true,
             },
-            level = {}
+            level = {},
+            mobs = {},
         },
         killCmds = {"backstab"},
         showConsiderOutput = false,
@@ -277,9 +289,37 @@ function Settings.ignore_level_toggle(alias, line, wc)
     ))
 end
 
+function Settings.ignore_mob_display()
+    local alphabetized = {}
+    for name in pairs(Settings.config.ignore.mobs) do
+        table.insert(alphabetized, Utility.pascalCase(name))
+    end
+    table.sort(alphabetized)
+    Utility.plugin_msg("Ignored mobs:")
+    if (#alphabetized == 0) then
+        Utility.print("                 No mobs ignored")
+        return
+    end
+    for _, name in ipairs(alphabetized) do
+        Utility.print(string.format("                 @Y%s", name))
+    end
+end
+
+function Settings.ignore_mob_toggle(alias, line, wc)
+    local mob = wc.mob:lower()
+    Settings.config.ignore.mobs[mob] = not Settings.config.ignore.mobs[mob] and true or nil
+    Settings.save()
+    Utility.plugin_msg(string.format("%s @wignoreing mob @Y%s@w.",
+        Settings.config.ignore.mobs[mob] and "@GNow" or "@RNo longer",
+        mob
+    ))
+end
+
 function Settings.should_ignore(mob)
     -- ignore mob if it has divine protection
     local ignoreMob = mob.protected
+    -- ignore if already ignored or mob's name is ignored
+    ignoreMob = ignoreMob or Settings.config.ignore.mobs[mob.name:lower()]
     -- ignore if already ignored or mob's level range is set to ignored
     ignoreMob = ignoreMob or Settings.config.ignore.level[mob.levelRange]
     for flag in pairs(mob.flags) do
@@ -623,11 +663,12 @@ function Utility.display_help()
 end
 
 function Utility.pascalCase(str)
-    return str:gsub("(%a)([%w_']*)",
+    str = str:gsub("(%a)([%w_']*)",
         function(first,remainder)
             return string.format("%s%s", first:upper(), remainder:lower())
         end
     )
+    return str
 end
 
 
