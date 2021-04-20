@@ -660,6 +660,7 @@ function GMCPHandler.received_repop()
 end
 
 function GMCPHandler.received_room(room)
+    Consider.clear()
     if (Settings.config.autoConsider and GMCPHandler.get_char_state() ~= GMCPHandler.CHAR_STATE.RUNNING) then
         Consider.start()
     end
