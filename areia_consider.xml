@@ -169,6 +169,22 @@ function Settings.initialize()
         "Settings.kill_cmd"
     )
     
+    AddAlias("alias_settings_mob_keyword_display_all",
+        "^ac\\s+keywords?$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.mob_keywords_display_all"
+    )
+    AddAlias("alias_settings_mob_keyword_display_single",
+        "^ac\\s+keywords?\\s+(?<mob>[^\"]+?)$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.mob_keywords_display_single"
+    )
+    AddAlias("alias_settings_mob_keyword_set",
+        "^ac\\s+keywords?\\s+(?<mob>[^\"]+?)\\s+\"(?<keywords>[\\w\\s]+)\"$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Settings.mob_keywords"
+    )
+    
     AddAlias("alias_settings_consider_output",
         "^ac\\s+show(?:\\s+(?<setting>\\w+))?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
@@ -190,6 +206,7 @@ function Settings.default()
             mobs = {},
         },
         killCmds = {"backstab"},
+        mobKeywords = {},
         showConsiderOutput = false,
     }
     for i = 1, 13 do
@@ -355,6 +372,50 @@ function Settings.get_kill_cmd_str()
         table.insert(cmdList, cmdStr)
     end
     return table.concat(cmdList, ";")
+end
+
+function Settings.mob_keywords_display_all()
+    local alphabetized = {}
+    for name, keywords in pairs(Settings.config.mobKeywords) do
+        table.insert(alphabetized, {name=name, keywords=keywords})
+    end
+    table.sort(alphabetized, function(e1,e2) return e1.name < e2.name end)
+    Utility.plugin_msg("Custom mob keywords:")
+    if (#alphabetized == 0) then
+        Utility.print("                 No custom keywords set")
+        return
+    end
+    for _, mob in ipairs(alphabetized) do
+        Utility.print(string.format("                 @Y%-40.40s@w: @Y%s",
+            Utility.pascalCase(mob.name), mob.keywords
+        ))
+    end
+end
+
+function Settings.mob_keywords_display_single(alias, line, wc)
+    local mob = wc.mob:lower()
+    local keywords = Settings.config.mobKeywords[mob]
+    if (keywords) then
+        Utility.plugin_msg(
+            string.format(
+                "Using the following keywords to refer to @Y%s@w:",
+                Utility.pascalCase(mob)
+            ),
+            string.format("@Y%s", keywords)
+        )
+        return
+    end
+    Utility.plugin_msg(string.format("Using default keywords to refer to @Y%s@w.",
+        Utility.pascalCase(mob)
+    ))
+end
+
+function Settings.mob_keywords(alias, line, wc)
+    local mob = wc.mob:lower()
+    local keywords = wc.keywords:lower()
+    Settings.config.mobKeywords[mob] = keywords ~= "" and keywords or nil
+    Settings.save()
+    Execute(string.format("ac keywords %s", mob))
 end
 
 function Settings.consider_output(alias, line, wc)
@@ -527,6 +588,13 @@ function Consider.get_mob_keywords(name)
     if (Consider.keywordCache[name]) then
         return Consider.keywordCache[name]
     end
+    
+    local customKeywords = Settings.config.mobKeywords[name:lower()]
+    if (customKeywords) then
+        Consider.keywordCache[name] = customKeywords
+        return customKeywords
+    end
+    
     local keywords = {}
     for word in name:lower():gmatch("[^%s]+") do -- iterate through each string of non-whitespace chars
         if (not Consider.KEYWORDS_TO_IGNORE[word]) then -- if not in omit table, we want to use it
