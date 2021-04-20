@@ -215,7 +215,7 @@ function Settings.ignore_flag_display()
     Utility.plugin_msg("Ignored flags:")
     for _, flag in ipairs{"aimed", "evil", "good", "sanctuary", "wounded"} do
         Utility.print(string.format("                @Y%-11.11s (%-5.5s@w)",
-            Utility.capitalize(flag), Settings.config.ignore.flags[flag] and "@GYes" or "@RNo"
+            Utility.pascalCase(flag), Settings.config.ignore.flags[flag] and "@GYes" or "@RNo"
         ))
     end
 end
@@ -622,8 +622,12 @@ function Utility.display_help()
     Utility.print("TODO")
 end
 
-function Utility.capitalize(str)
-    return string.format("%s%s", str:sub(1, 1):upper(), str:sub(2))
+function Utility.pascalCase(str)
+    return str:gsub("(%a)([%w_']*)",
+        function(first,remainder)
+            return string.format("%s%s", first:upper(), remainder:lower())
+        end
+    )
 end
 
 
