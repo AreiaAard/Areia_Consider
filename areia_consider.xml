@@ -741,6 +741,7 @@ function Utility.initialize()
         Settings.initialize,
         Consider.initialize,
         GMCPHandler.initialize,
+        Update.initialize,
     }
     for _, initializer in ipairs(initializers) do
         initializer()
