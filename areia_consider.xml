@@ -8,10 +8,10 @@
    id="434bc4b92d5e6ddf77d8e20c"
    language="Lua"
    purpose="Quick kill with consider"
-   save_state="n"
+   save_state="y"
    date_written="2021-04-11 21:00:00"
    requires="5.06"
-   version="1.0"
+   version="1.1"
    >
 <description trim="y">
 <![CDATA[
@@ -723,6 +723,48 @@ end
 
 
 --------------------------------------------------
+-- Help
+--------------------------------------------------
+
+Help = {}
+
+function Help.initialize()
+    AddAlias("alias_help_main",
+        "^ac\\s+help$", "",
+        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
+        "Help.main"
+    )
+end
+
+function Help.main()
+    Utility.print("@WAreia_Consider Commands")
+    Utility.print("==================================================")
+    Utility.print("@Yac@w: Consider the current room")
+    Utility.print("@Yac auto [on|off]@w: Set/toggle auto consider")
+    Utility.print("@Yac ignore flag [<flag> [on|off]]@w: Show status of ignore for all flags; if")
+    Utility.print("          <flag> is given, set/toggle status of that particular flag")
+    Utility.print("@Yac ignore level [<#> [on|off]]@w: Show status of ignore for all level ranges; if")
+    Utility.print("          <#> is given, set/toggle status of that particular level range")
+    Utility.print("@Yac ignore mob [<mob>]@w: Show/toggle status of ignore for mobs with a particular")
+    Utility.print("          name.")
+    Utility.print("@Yac keyword [<mob> [\"<keyword(s)>\"]]@w: Show custom keywords for all mobs; if")
+    Utility.print("          <mob> is given, show/set custom keywords for that particular mob.")
+    Utility.print("          Note: When setting the keywords for a mob, you must surround the key-")
+    Utility.print("          words themselves with quotes (e.g., @Yac keyword a goblin \"gob\" @wwould")
+    Utility.print("          force the script to use 'gob' for any mob named 'a goblin').")
+    Utility.print("@Yac killcmd [cmd1[;;cmd2[;;...]]]@w: Show/set kill command to be used with")
+    Utility.print("          @Yac kill/killall @w(see below)")
+    Utility.print("@Yac show [on|off]@w: Set/toggle display of consider info (includes ignore status,")
+    Utility.print("          name, level range, and flags)")
+    Utility.print("@Yac kill <#>@w: Execute kill command on a particular mob")
+    Utility.print("@Yack <#>@w: Shorthand for ac kill <#>")
+    Utility.print("@Yac killall@w: Execute kill command on every non-ignored mob in the room")
+    Utility.print("@Yaca@w: Shorthand for ac killall")
+end
+
+
+
+--------------------------------------------------
 -- Utility
 --------------------------------------------------
 
@@ -730,18 +772,13 @@ Utility = {}
 
 function Utility.initialize()
     -- General aliases
-    AddAlias("alias_utility_help",
-        "^ac\\s+help$", "",
-        alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
-        "Utility.display_help"
-    )
-    
     local initializers = {
         Main.initialize,
         Settings.initialize,
         Consider.initialize,
         GMCPHandler.initialize,
         Update.initialize,
+        Help.initialize,
     }
     for _, initializer in ipairs(initializers) do
         initializer()
@@ -778,10 +815,9 @@ function Utility.plugin_msg(str, ...)
 end
 
 function Utility.display_greeting()
-end
-
-function Utility.display_help()
-    Utility.print("TODO")
+    Utility.plugin_msg("Areia Consider plugin installed.",
+        "Enter @Yac help @wfor command help."
+    )
 end
 
 function Utility.pascalCase(str)
