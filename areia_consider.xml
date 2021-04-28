@@ -81,7 +81,7 @@ function Main.kill(alias, line, wc)
     -- the right one
     local mob = Consider.mobs[#Consider.mobs + 1 - index]
     if (not mob) then
-        Utility.print("There are only %d mobs currently indexed. Enter @Yac @wto refresh.")
+        Utility.print(string.format("There are only %d mobs currently indexed. Enter @Yac @wto refresh.", #Consider.mobs))
         return
     end
     if (mob.ignore) then
