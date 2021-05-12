@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2021-04-11 21:00:00"
    requires="5.06"
-   version="1.1"
+   version="1.11"
    >
 <description trim="y">
 <![CDATA[
@@ -413,6 +413,16 @@ function Settings.mob_keywords(alias, line, wc)
     local mob = wc.mob:lower()
     local keywords = wc.keywords:lower()
     Settings.config.mobKeywords[mob] = keywords ~= "" and keywords or nil
+    
+    -- if this mob is already in cache and we don't remove it, the new keywords
+    -- won't be recognized
+    for name, keywords in pairs(Consider.keywordCache) do
+        if (name:lower() == mob) then
+            Consider.keywordCache[name] = nil
+            break
+        end
+    end
+    
     Settings.save()
     Execute(string.format("ac keywords %s", mob))
 end
