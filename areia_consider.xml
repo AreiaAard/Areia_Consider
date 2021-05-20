@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2021-04-11 21:00:00"
    requires="5.06"
-   version="1.12"
+   version="1.13"
    >
 <description trim="y">
 <![CDATA[
@@ -522,6 +522,10 @@ function Consider.start()
         Utility.print("Character state does not allow consider.")
         return
     end
+    if (GMCPHandler.get_room_flags().safe) then
+        Utility.print("This is a safe room.")
+        return
+    end
     SendNoEcho("echo {consider}")
     SendNoEcho("consider all")
     SendNoEcho("echo {/consider}")
@@ -662,20 +666,29 @@ function GMCPHandler.get_char_state()
     return GMCPHandler.mapperRunning and GMCPHandler.CHAR_STATE.RUNNING or tonumber(gmcp("char.status.state"))
 end
 
+function GMCPHandler.get_room_flags()
+    local flags = {}
+    for flag in GMCPHandler.prevRoom.details:gmatch("[^,]+") do
+        flags[flag] = true
+    end
+    return flags
+end
+
 function GMCPHandler.received_repop()
     local state = GMCPHandler.get_char_state()
     if (Settings.config.autoConsider and (state == GMCPHandler.CHAR_STATE.ACTIVE
-    or state == GMCPHandler.CHAR_STATE.FIGHTING)) then
+    or state == GMCPHandler.CHAR_STATE.FIGHTING) and not GMCPHandler.get_room_flags().safe) then
         Consider.start()
     end
 end
 
 function GMCPHandler.received_room(room)
     Consider.clear()
-    if (Settings.config.autoConsider and GMCPHandler.get_char_state() ~= GMCPHandler.CHAR_STATE.RUNNING) then
+    GMCPHandler.prevRoom = room
+    if (Settings.config.autoConsider and GMCPHandler.get_char_state() ~= GMCPHandler.CHAR_STATE.RUNNING
+    and not GMCPHandler.get_room_flags().safe) then
         Consider.start()
     end
-    GMCPHandler.prevRoom = room
 end
 
 
