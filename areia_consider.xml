@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2021-04-11 21:00:00"
    requires="5.06"
-   version="1.13"
+   version="1.14"
    >
 <description trim="y">
 <![CDATA[
@@ -136,7 +136,7 @@ function Settings.initialize()
         "Settings.ignore_flag_display"
     )
     AddAlias("alias_settings_ignore_flag_toggle",
-        "^ac\\s+ignore\\s+flag\\s+(?<flag>\\w+)(?:\\s+(?<setting>\\w+))?$", "",
+        "^ac\\s+ignore\\s+flags?\\s+(?<flag>\\w+)(?:\\s+(?<setting>\\w+))?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.ignore_flag_toggle"
     )
@@ -147,18 +147,18 @@ function Settings.initialize()
         "Settings.ignore_level_display"
     )
     AddAlias("alias_settings_ignore_level_toggle",
-        "^ac\\s+ignore\\s+level\\s+(?<level>\\d+)(?:\\s+(?<setting>\\w+))?$", "",
+        "^ac\\s+ignore\\s+levels?\\s+(?<level>\\d+)(?:\\s+(?<setting>\\w+))?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.ignore_level_toggle"
     )
     
     AddAlias("alias_settings_ignore_mob_display",
-        "^ac\\s+ignore\\s+mobs?$", "",
+        "^ac\\s+ignore\\s+names?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.ignore_mob_display"
     )
     AddAlias("alias_settings_ignore_mob_toggle",
-        "^ac\\s+ignore\\s+mob\\s+(?<mob>.+?)$", "",
+        "^ac\\s+ignore\\s+names?\\s+(?<mob>.+?)$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Settings.ignore_mob_toggle"
     )
@@ -326,7 +326,7 @@ function Settings.ignore_mob_toggle(alias, line, wc)
     local mob = wc.mob:lower()
     Settings.config.ignore.mobs[mob] = not Settings.config.ignore.mobs[mob] and true or nil
     Settings.save()
-    Utility.plugin_msg(string.format("%s @wignoreing mob @Y%s@w.",
+    Utility.plugin_msg(string.format("%s @wignoreing mobs named @Y%s@w.",
         Settings.config.ignore.mobs[mob] and "@GNow" or "@RNo longer",
         Utility.pascalCase(mob)
     ))
