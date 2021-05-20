@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2021-04-11 21:00:00"
    requires="5.06"
-   version="1.11"
+   version="1.12"
    >
 <description trim="y">
 <![CDATA[
@@ -498,6 +498,7 @@ function Consider.initialize()
     )
     SetTriggerOption("trigger_consider_mob_end", "group", "trigger_group_consider_mobs")
     
+    Consider.TIMEOUT = 30
     Consider.KEYWORDS_TO_IGNORE  =  {["a"] = true, ["an"] = true, ["and"] = true,
         ["but"] = true, ["for"] = true, ["in"] = true, ["nor"] = true,
         ["of"] = true, ["on"] = true, ["or"] = true, ["so"] = true, ["some"] = true,
@@ -528,7 +529,7 @@ function Consider.start()
 end
 
 function Consider.start_CR()
-    local line = wait.regexp("^\\{consider\\}$", 4, trigger_flag.OmitFromOutput)
+    local line = wait.regexp("^\\{consider\\}$", Consider.TIMEOUT, trigger_flag.OmitFromOutput)
     if (not line) then
         Utility.print("@RTimeout@w. Failed to obtain consider output.")
         return
