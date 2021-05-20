@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2021-04-11 21:00:00"
    requires="5.06"
-   version="1.15"
+   version="1.16"
    >
 <description trim="y">
 <![CDATA[
@@ -668,7 +668,8 @@ end
 
 function GMCPHandler.get_room_flags()
     local flags = {}
-    for flag in GMCPHandler.prevRoom.details:gmatch("[^,]+") do
+    local details = GMCPHandler.prevRoom.details or ""
+    for flag in details:gmatch("[^,]+") do
         flags[flag] = true
     end
     return flags
