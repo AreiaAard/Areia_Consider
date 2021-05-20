@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2021-04-11 21:00:00"
    requires="5.06"
-   version="1.14"
+   version="1.15"
    >
 <description trim="y">
 <![CDATA[
@@ -244,7 +244,7 @@ function Settings.ignore_flag_display()
     Utility.plugin_msg("Ignored flags:")
     for _, flag in ipairs{"aimed", "evil", "good", "sanctuary", "wounded"} do
         Utility.print(string.format("            @Y%-11.11s (%-5.5s@w)",
-            Utility.pascalCase(flag), Settings.config.ignore.flags[flag] and "@GYes" or "@RNo"
+            Utility.pascal_case(flag), Settings.config.ignore.flags[flag] and "@GYes" or "@RNo"
         ))
     end
 end
@@ -309,7 +309,7 @@ end
 function Settings.ignore_mob_display()
     local alphabetized = {}
     for name in pairs(Settings.config.ignore.mobs) do
-        table.insert(alphabetized, Utility.pascalCase(name))
+        table.insert(alphabetized, Utility.pascal_case(name))
     end
     table.sort(alphabetized)
     Utility.plugin_msg("Ignored mobs:")
@@ -328,7 +328,7 @@ function Settings.ignore_mob_toggle(alias, line, wc)
     Settings.save()
     Utility.plugin_msg(string.format("%s @wignoreing mobs named @Y%s@w.",
         Settings.config.ignore.mobs[mob] and "@GNow" or "@RNo longer",
-        Utility.pascalCase(mob)
+        Utility.pascal_case(mob)
     ))
 end
 
@@ -387,7 +387,7 @@ function Settings.mob_keywords_display_all()
     end
     for _, mob in ipairs(alphabetized) do
         Utility.print(string.format("            @Y%-40.40s@w: @Y%s",
-            Utility.pascalCase(mob.name), mob.keywords
+            Utility.pascal_case(mob.name), mob.keywords
         ))
     end
 end
@@ -398,14 +398,14 @@ function Settings.mob_keywords_display_single(alias, line, wc)
     if (keywords) then
         Utility.plugin_msg(
             string.format(
-                "Custom keywords for @Y%s@w:", Utility.pascalCase(mob)
+                "Custom keywords for @Y%s@w:", Utility.pascal_case(mob)
             ),
             string.format("@Y%s", keywords)
         )
         return
     end
     Utility.plugin_msg(string.format("No custom keywords set for @Y%s@w.",
-        Utility.pascalCase(mob)
+        Utility.pascal_case(mob)
     ))
 end
 
@@ -753,37 +753,226 @@ end
 Help = {}
 
 function Help.initialize()
+    Help.TOPICS = {
+        ["auto"] = "Help.topic_auto", ["consider"] = "Help.topic_consider",
+        ["ignore"] = "Help.topic_ignore", ["keywords"] = "Help.topic_keywords",
+        ["kill"] = "Help.topic_kill", ["killall"] = "Help.topic_killall",
+        ["killcmd"] = "Help.topic_killcmd", ["show"] = "Help.topic_show",
+        ["update"] = "Help.topic_update",
+    }
     AddAlias("alias_help_main",
-        "^ac\\s+help$", "",
+        "^ac\\s+help(?:\\s+(?<topic>.+?))?$", "",
         alias_flag.Enabled + alias_flag.IgnoreAliasCase + alias_flag.RegularExpression + alias_flag.Temporary,
         "Help.main"
     )
 end
 
-function Help.main()
-    Utility.print("@WAreia_Consider Commands")
-    Utility.print("==================================================")
-    Utility.print("@Yac@w: Consider the current room")
-    Utility.print("@Yac auto [on|off]@w: Set/toggle auto consider")
-    Utility.print("@Yac ignore flag [<flag> [on|off]]@w: Show status of ignore for all flags; if")
-    Utility.print("          <flag> is given, set/toggle status of that particular flag")
-    Utility.print("@Yac ignore level [<#> [on|off]]@w: Show status of ignore for all level ranges; if")
-    Utility.print("          <#> is given, set/toggle status of that particular level range")
-    Utility.print("@Yac ignore mob [<mob>]@w: Show/toggle status of ignore for mobs with a particular")
-    Utility.print("          name.")
-    Utility.print("@Yac keyword [<mob> [\"<keyword(s)>\"]]@w: Show custom keywords for all mobs; if")
-    Utility.print("          <mob> is given, show/set custom keywords for that particular mob.")
-    Utility.print("          Note: When setting the keywords for a mob, you must surround the key-")
-    Utility.print("          words themselves with quotes (e.g., @Yac keyword a goblin \"gob\" @wwould")
-    Utility.print("          force the script to use 'gob' for any mob named 'a goblin').")
-    Utility.print("@Yac killcmd [cmd1[;;cmd2[;;...]]]@w: Show/set kill command to be used with")
-    Utility.print("          @Yac kill/killall @w(see below)")
-    Utility.print("@Yac show [on|off]@w: Set/toggle display of consider info (includes ignore status,")
-    Utility.print("          name, level range, and flags)")
-    Utility.print("@Yac kill <#>@w: Execute kill command on a particular mob")
-    Utility.print("@Yack <#>@w: Shorthand for ac kill <#>")
-    Utility.print("@Yac killall@w: Execute kill command on every non-ignored mob in the room")
-    Utility.print("@Yaca@w: Shorthand for ac killall")
+function Help.main(alias, line, wc)
+    local topic = wc.topic:lower()
+    if (topic == "") then
+        Help.topic_main()
+        return
+    end
+    if (not Help.TOPICS[topic]) then
+        Utility.plugin_msg(string.format(
+        "@Y%s @wis not a valid help topic.",
+            Utility.pascal_case(topic)
+        ))
+        Help.topic_main()
+        return
+    end
+    CallPlugin(GetPluginID(), Help.TOPICS[topic])
+end
+
+function Help.title(str)
+    local titleStr = string.format("Consider Help - %s", str)
+    Utility.print(string.format("@W%s", Utility.center(titleStr, 70)))
+    Utility.print(string.rep("=", 70))
+end
+
+function Help.syntax(str)
+    Utility.print(string.format("    Syntax: @Y%s", str))
+end
+
+function Help.topic_main()
+    local alphabetized = {}
+    for topic in pairs(Help.TOPICS) do
+        table.insert(alphabetized, topic)
+    end
+    table.sort(alphabetized)
+    local hyperlinkAction = string.format("!!%s:%%s()", GetPluginID())
+    Help.title("Help Topics")
+    for i, topic in ipairs(alphabetized) do
+        local action = hyperlinkAction:format(Help.TOPICS[topic])
+        local hint = string.format("Click to view help on %s.", topic)
+        Hyperlink(action, topic, hint, "yellow", "black", false)
+        if (i % 4 == 0 or i == #alphabetized) then
+            Note("") -- end line, with four topics per line
+        else
+            ColourTell("silver", "black", ",", "", "", string.rep(" ", 20 - (#topic + 1)))
+        end
+    end
+    Utility.print("Click on a topic or submit @Yac help <topic> @wto view it.")
+end
+
+function Help.topic_auto()
+    Help.title("Auto")
+    Help.syntax("ac auto [on|off]")
+    Utility.print([[
+Set (or toggle, if no argument is given) auto-consider mode. This mode
+causes the plugin to collect mob info whenever your area repops or
+you move into a new room.
+@R***NOTE***@w: This mode does not and should @R*NOT* @wautomatically kill any
+mobs upon a successful consider. You must do this yourself using the
+@Yac kill @wor @Yac killall @wcommands. Modifying or otherwise utilizing this
+plugin to kill mobs automatically is against botting rules and will
+likely get you nuked.
+]])
+end
+
+function Help.topic_consider()
+    Help.title("Consider")
+    Help.syntax("ac")
+    Utility.print([[
+Collect info about the mobs in your room via consider. This must be
+done before you will be able to kill mobs using the @Yac kill @wand
+@Yac killall @wcommands. See @Yac help auto @wfor info on setting the
+plugin to do this automatically.
+]])
+end
+
+function Help.topic_ignore()
+    Help.title("Ignore")
+    Help.syntax("ac ignore flag [<flag> [on|off]]")
+    Help.syntax("ac ignore level [<index> [on|off]]")
+    Help.syntax("ac ignore name [<name>]")
+    Utility.print([[
+It is often helpful to be able to ignore certain mobswhile casually
+leveling and pupping. For example, most would rather not attack mobs
+with sanctuary, as it slows leveling. Or maybe there is a particular
+mob in a frequented area that is immune to your main damtype that you
+would wish not to attack. Using the above commands, you can view and
+set various ways in which the plugin will ignore mobs when you ask it
+to kill or killall.
+Type @Yac ignore flag @wto see which flags currently cause the plugin to
+ignore a mob. @YAc ignore flag <flag> @wwill toggle the setting for the
+given flag. Valid flag names are aimed, evil, good, sanctuary, and
+wounded.
+Similarly, @Yac ignore level @wshows which level ranges you will not
+attack, and @Yac ignore level <index> @wtoggles the setting for the given
+level range. Range is from 1 (20 levels or less under yours) to 13
+(51 or more above).
+Finally, @Yac ignore name @wand @Yac ignore name <name> @wshow and toggle
+the ignoring of mobs with a particular name. Note that punctuation
+(e.g., commas, hyphens) must match the actual mob's name, but the name
+is not case-sensitive.
+]])
+end
+
+function Help.topic_keywords()
+    Help.title("Keywords")
+    Help.syntax("ac keywords [<mob name> [\"[<keywords>]\"]]")
+    Utility.print([[
+When considering mobs in a room, the plugin does its best to guess at
+a mob's keywords (the words used to interact with it) based on its
+description (what you see on your screen). Unfortunately, keywords do
+not always match descriptions, which can cause the plugin to fail to
+target a mob properly.
+If you notice that the plugin fails to kill a certain mob, simply sub-
+mit @Yac keyword <mob name> "<keywords>" @wto set custom keywords for mobs
+with that name. For example, there is a mob called 'a male villager'
+in Radiance Woods. The plugin reasonably assumes that 'male villager'
+will work to target this mob, but it turns out that 'male' is not one
+of its valid keywords, so the plugin fails to attack it. To fix, type
+@Yac keywords a male villager "villager" @w(quotes around the keywords),
+re-consider the room, and now you can attack it correctly.
+To remove custom keywords, type the same command as above, but with
+nothing between the quotes (e.g., @Yac keywords a male villager ""@w).
+Supplying the mob name alone, without anything in quotes, will display
+the custom keywords set for that mob (if any), and typing simply
+@Yac keywords @wwill provide you with a list of all mobs associated with
+custom keywords. Neither names nor keywords are case-sensitive.
+]])
+end
+
+function Help.topic_kill()
+    Help.title("Kill")
+    Help.syntax("ac kill <#>")
+    Help.syntax("ack <#>")
+    Utility.print([[
+So you've used the @Yac @wcommand to consider a room. Now what? To get
+killing, use one of the above commands (the second is simply a short-
+cut to the first), providing the index of the mob you wish to kill.
+For instance, to kill the third mob in the room, submit @Yack 3@w.
+This method is probably most useful while grouping. The @Ykillall @wcom-
+mand is much easier and more powerful to use while solo, but it tends
+to cause a lot of unnecessary stacking and missed attacks due to the
+speed and order in which mobs are killed by a group.
+]])
+end
+
+function Help.topic_killall()
+    Help.title("Killall")
+    Help.syntax("ac killall")
+    Help.syntax("aca")
+    Utility.print([[
+So you've used the @Yac @wcommand to consider a room. Now what? To get
+killing, use one of the above commands (the second is simply a short-
+cut to the first).
+This is the best method to kill mobs while solo-leveling, assuming
+an area not entirely full of aggressive mobs. It will execute your
+chosen kill command (see @Yac help killcmd@w) once on each non-ignored mob
+in the room.
+]])
+end
+
+function Help.topic_killcmd()
+    Help.title("Killcmd")
+    Help.syntax("ac killcmd [<command(s)>]")
+    Utility.print([[
+This shows or sets (if an argument is given) the command(s) used to
+attack mobs by @Yac kill @wand @Yac killall@w. The string is sent to 'Execute'
+(i.e., the MUSHClient command processor), so it can be a simple
+command like 'kick', an alias, a script that starts with your client's
+script prefix, etc.
+The plugin's kill commands automatically append the appropriate target
+mob's keywords to the end of each command (or each sub-command, if it
+contains multiple parts); thus, you need only provide the attack com-
+mand itself. For example, @Yac killcmd bs @wwould set the plugin to back-
+stab your targets. @YAc killcmd bs;;spiral @wwould set it to backstab and
+then spiral each target.
+]])
+end
+
+function Help.topic_show()
+    Help.title("Show")
+    Help.syntax("ac show [on|off]")
+    Utility.print([[
+By default, the plugin hides most consider output that it requests, to
+save you from having a bunch of unnecessary lines in your output win-
+dow. The above command allows you to set or toggle this option. Turn-
+ing it on will display consider output, though in a slightly different
+format from that which the MUD outputs. You are able to see which mobs
+the plugin is ignoring, along with a more helpful description of its
+level relative to yours.
+In either case, the plugin always provides a summary of the total
+number of mobs found to be in the room. If one or more mobs are to be
+ignored, you are given both the number of valid targets and the total
+number of mobs present (e.g., '@Y3@w/@Y4 @wmobs found.' tells you that there
+are three valid targets out of four total mobs present).
+]])
+end
+
+function Help.topic_update()
+    Help.title("Update")
+    Help.syntax("ac update")
+    Utility.print([[
+Occasionally fixes or improvements might be made to the plugin. You
+can use the above command any time to check for a newer version. If a
+version more recent than your current version exists, it will auto-
+matically be downloaded and installed, ready to be used further with
+your previously saved settings in tact.
+]])
 end
 
 
@@ -844,7 +1033,16 @@ function Utility.display_greeting()
     )
 end
 
-function Utility.pascalCase(str)
+function Utility.center(str, width, fill)
+    fill = fill or " "
+    local strWidth = #str
+    local leftWidth = math.floor((width - strWidth) / 2)
+    local rightWidth = math.ceil((width - strWidth) / 2)
+    local centeredStr = "%s%s%s"
+    return centeredStr:format(fill:rep(leftWidth), str, fill:rep(rightWidth))
+end
+
+function Utility.pascal_case(str)
     str = str:gsub("(%a)([%w_']*)",
         function(first,remainder)
             return string.format("%s%s", first:upper(), remainder:lower())
