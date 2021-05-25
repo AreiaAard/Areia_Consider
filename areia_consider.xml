@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2021-04-11 21:00:00"
    requires="5.06"
-   version="1.16"
+   version="1.17"
    >
 <description trim="y">
 <![CDATA[
@@ -206,7 +206,7 @@ function Settings.default()
             level = {},
             mobs = {},
         },
-        killCmds = {"backstab"},
+        killCmds = {"backstab *"},
         mobKeywords = {},
         showConsiderOutput = false,
     }
@@ -360,8 +360,9 @@ end
 
 function Settings.get_kill_cmd(mob)
     local cmdList = {}
+    local mobStr = string.format("%d.'%s'", mob.index, mob.keywords)
     for _, cmd in ipairs(Settings.config.killCmds) do
-        local cmdStr = string.format("%s %d.'%s'", cmd, mob.index, mob.keywords)
+        local cmdStr = cmd:gsub("%*", mobStr)
         table.insert(cmdList, cmdStr)
     end
     local stackChar = GetAlphaOption("command_stack_character")
@@ -371,7 +372,7 @@ end
 function Settings.get_kill_cmd_str()
     local cmdList = {}
     for _, cmd in ipairs(Settings.config.killCmds) do
-        local cmdStr = string.format("%s <target>", cmd)
+        local cmdStr = cmd:gsub("%*", "<target>")
         table.insert(cmdList, cmdStr)
     end
     local stackChar = GetAlphaOption("command_stack_character")
@@ -940,12 +941,15 @@ attack mobs by @Yac kill @wand @Yac killall@w. The string is sent to 'Execute'
 (i.e., the MUSHClient command processor), so it can be a simple
 command like 'kick', an alias, a script that starts with your client's
 script prefix, etc.
-The plugin's kill commands automatically append the appropriate target
-mob's keywords to the end of each command (or each sub-command, if it
-contains multiple parts); thus, you need only provide the attack com-
-mand itself. For example, @Yac killcmd bs @wwould set the plugin to back-
-stab your targets. @YAc killcmd bs;;spiral @wwould set it to backstab and
-then spiral each target.
+Use '@Y*@w' to indicate where in the command string a target name should
+be added. For example, @Yac killcmd bs * @wwould set the plugin to back-
+stab your targets. @YAc killcmd bs *;;spiral @wwould set it to backstab
+the target and then add a single, non-targeted spiral immediately
+after. This can be useful if you're not exactly sure what might be
+necessary to kill your mobs. If you wanted to backstab and spiral each
+and every mob, you would use @Yac killcmd bs *;;spiral * @w(though note
+this might add extra lag if the mob is already dead before the spiral
+executes). -Thanks to DarkSobek for suggesting this feature.
 ]])
 end
 
