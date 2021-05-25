@@ -112,7 +112,8 @@ function Main.kill_all(alias, line, wc)
         Utility.print("All mobs in room are ignored.")
         return
     end
-    Execute(table.concat(cmds, ";"))
+    local stackChar = GetAlphaOption("command_stack_character")
+    Execute(table.concat(cmds, stackChar))
 end
 
 
@@ -348,7 +349,8 @@ end
 
 function Settings.kill_cmd(alias, line, wc)
     if (wc.setting ~= "") then
-        Settings.config.killCmds = utils.split(wc.setting, ";")
+        local stackChar = GetAlphaOption("command_stack_character")
+        Settings.config.killCmds = utils.split(wc.setting, stackChar)
         Settings.save()
     end
     Utility.plugin_msg("Kill command:",
@@ -362,7 +364,8 @@ function Settings.get_kill_cmd(mob)
         local cmdStr = string.format("%s %d.'%s'", cmd, mob.index, mob.keywords)
         table.insert(cmdList, cmdStr)
     end
-    return table.concat(cmdList, ";")
+    local stackChar = GetAlphaOption("command_stack_character")
+    return table.concat(cmdList, stackChar)
 end
 
 function Settings.get_kill_cmd_str()
@@ -371,7 +374,8 @@ function Settings.get_kill_cmd_str()
         local cmdStr = string.format("%s <target>", cmd)
         table.insert(cmdList, cmdStr)
     end
-    return table.concat(cmdList, ";")
+    local stackChar = GetAlphaOption("command_stack_character")
+    return table.concat(cmdList, stackChar)
 end
 
 function Settings.mob_keywords_display_all()
