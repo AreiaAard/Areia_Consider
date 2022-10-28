@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2021-04-11 21:00:00"
    requires="5.06"
-   version="1.18"
+   version="1.20"
    >
 <description trim="y">
 <![CDATA[
@@ -39,6 +39,8 @@
 require "commas"
 require "copytable"
 require "gmcphelper"
+require "json"
+require "serialize"
 require "tprint"
 require "var"
 require "wait"
@@ -525,22 +527,24 @@ function Consider.start()
     local state = GMCPHandler.get_char_state()
     if not (state == GMCPHandler.CHAR_STATE.ACTIVE or state == GMCPHandler.CHAR_STATE.FIGHTING) then
         Utility.print("Character state does not allow consider.")
-        return
+        return false
     end
     if (GMCPHandler.get_room_flags().safe) then
         Utility.print("This is a safe room.")
-        return
+        return false
     end
     SendNoEcho("echo {consider}")
     SendNoEcho("consider all")
     SendNoEcho("echo {/consider}")
     wait.make(Consider.start_CR)
+    return true
 end
 
 function Consider.start_CR()
     local line = wait.regexp("^\\{consider\\}$", Consider.TIMEOUT, trigger_flag.OmitFromOutput)
     if (not line) then
         Utility.print("@RTimeout@w. Failed to obtain consider output.")
+        BroadcastPlugin(0, "{}")
         return
     end
     Consider.clear()
@@ -583,11 +587,6 @@ end
 function Consider.finish()
     EnableTriggerGroup("trigger_group_consider_mobs", false)
     local total = #Consider.mobs
-    if (total == 0) then
-        -- Utility.print("No mobs found.")
-        -- No real need to print here, since game output can handle this case itself.
-        return
-    end
     local validTargets = 0
     for _, mob in ipairs(Consider.mobs) do
         validTargets = not mob.ignore and validTargets + 1 or validTargets
@@ -596,11 +595,14 @@ function Consider.finish()
         Utility.print(string.format("@Y%d@w/@Y%d @wmob%s found.",
             validTargets, total, total == 1 and "" or "s"
         ))
-    else
+    elseif (total > 0) then
+        -- We don't print a msg if `total` is 0 because the game out-
+        -- put itself handles that situation.
         Utility.print(string.format("@Y%d @wmob%s found.",
             total, total == 1 and "" or "s"
         ))
     end
+    BroadcastPlugin(0, Consider.as_string())
 end
 
 function Consider.get_mob_keywords(name)
@@ -634,6 +636,10 @@ function Consider.get_mob_keywords(name)
     local keywordsStr = table.concat(keywords, " ")
     Consider.keywordCache[name] = keywordsStr
     return keywordsStr
+end
+
+function Consider.as_string()
+    return json.encode(Consider.mobs)
 end
 
 
@@ -853,6 +859,42 @@ Collect info about the mobs in your room via consider. This must be
 done before you will be able to kill mobs using the @Yac kill @wand
 @Yac killall @wcommands. See @Yac help auto @wfor info on setting the
 plugin to do this automatically.
+ 
+Plugin authors: As of v1.20, you can request JSON-formatted consider
+data from this script programmatically. To initiate a consider re-
+quest, call `Consider.start()`, which returns true/false to indicate
+whether consider can currently be sent to the MUD. To receive the
+resulting data, check for a broadcast msg 0 from this plugin in your
+`OnPluginBroadcast()` function; the `text` argument will contain the
+JSON. Here is an example from another of my plugins:
+ 
+```
+local CON_PLUGIN = "434bc4b92d5e6ddf77d8e20c"
+ 
+function Aura.count(alias, line, wc)
+    if (Aura.report) then
+        Utility.msg("Another aura count is already in progress.")
+        return
+    end
+    local _, considering = CallPlugin(CON_PLUGIN, "Consider.start")
+    if (considering) then
+        local report = trim(wc.report):lower()
+        report = report == "" and "echo" or report
+        Aura.report = report
+        Utility.msg("Counting auras...")
+    end
+end
+ 
+function OnPluginBroadcast(msg, id, name, text)
+    if (id == CON_PLUGIN) then
+        Aura.receive_mob_list(text)
+    end
+end
+```
+ 
+The `Aura.receive_mob_list()` handler then decodes the string, does
+whatever it must with the data, and then sets `Aura.report` back to
+nil so that another request can be made later.
 ]])
 end
 
