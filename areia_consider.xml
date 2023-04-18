@@ -11,7 +11,7 @@
    save_state="y"
    date_written="2021-04-11 21:00:00"
    requires="5.06"
-   version="1.17"
+   version="1.18"
    >
 <description trim="y">
 <![CDATA[
@@ -476,7 +476,7 @@ function Consider.initialize()
         "(?<name>.+?) looks a little worried about the idea\\.",
         "(?<name>.+?) should be a fair fight!",
         "(?<name>.+?) snickers nervously\\.",
-        "(?<name>.+?) chuckles at the thought of you fighting (?:him|her|it)\\.",
+        "(?<name>.+?) chuckles at the thought of you fighting (?:him|her|it|them)\\.",
         "Best run away from (?<name>.+?) while you can!",
         "Challenging (?<name>.+?) would be either very brave or very stupid\\.",
         "(?<name>.+?) would crush you like a bug!",
