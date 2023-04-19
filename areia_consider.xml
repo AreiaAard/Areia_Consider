@@ -690,6 +690,15 @@ end
 
 function GMCPHandler.received_room(room)
     Consider.clear()
+
+    -- If zone changes and auto-mode is on, then turn it off. This
+    -- will maybe, hopefully cut down on people spamming groups...
+    if (Settings.config.autoConsider and GMCPHandler.prevRoom
+    and GMCPHandler.prevRoom.zone ~= room.zone) then
+        Utility.plugin_msg("Disabling auto mode due to zone change.")
+        Settings.auto_consider(nil, nil, {setting="off"})
+    end
+
     GMCPHandler.prevRoom = room
     if (Settings.config.autoConsider and GMCPHandler.get_char_state() ~= GMCPHandler.CHAR_STATE.RUNNING
     and not GMCPHandler.get_room_flags().safe) then
